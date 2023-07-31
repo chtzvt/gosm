@@ -1,0 +1,144 @@
+# GitHub Organization Secrets Migrator (GOSM)
+
+Migrating secrets between GitHub organizations is crucial for several reasons, primarily due to the lack of a built-in mechanism for doing so. As organizations evolve, migrate, or merge with others, the need to transfer sensitive configuration data, such as API keys, access tokens, or cryptographic credentials, becomes inevitable. 
+
+Secrets are integral to various workflows. Without a dedicated migration tool, manually recreating and configuring secrets across organizations can be error-prone, time-consuming, and risky, potentially leading to accidental exposure or unauthorized access to critical resources. An automated migration tool like GOSM offers a streamlined approach, enabling seamless, secure, and efficient transfer of secrets while also minimizing the potential for human error.
+
+## Migration Process
+
+Migrating secrets with GOSM is straightforward. Here's how it works. 
+
+1. GOSM will generate a GitHub Actions workflow for you that will export all your organization's secrets into a downloadable archive. 
+
+2. GOSM can then import your organization's secrets archive into a new organization.
+
+##### Before You Begin
+
+You'll need a Pesonal Access Token with the following permissions, per GitHub's [API documentation](https://docs.github.com/en/rest/actions/secrets?apiVersion=2022-11-28#create-or-update-an-organization-secret):
+
+> You must authenticate using an access token with the admin:org scope to use this endpoint. If the repository is private, you must use an access token with the repo scope. GitHub Apps must have the secrets organization permission to use this endpoint. Authenticated users must have collaborator access to a repository to create, update, or read secrets.
+
+You can create a token with the required scopes by [clicking here](https://github.com/settings/tokens/new?scopes=repo,admin:org).
+
+##### Installing Ruby and GOSM's dependencies.
+
+To install GOSM, clone this repository and install its dependencies with `bundle install`. 
+
+You will need a working local Ruby installation. To learn more about installing Ruby on your machine, visit the [Ruby website](https://www.ruby-lang.org/en/documentation/installation/).
+
+Future versions of GOSM will be packaged as a gem for ease of installation.
+
+### :children_crossing: Security Disclaimer 
+
+Organization secrets are typically quite sensitive, and the security theats posed by leakage or exposure are considerable. Therefore, it's critically important to handle your GOSM archive with extreme caution during the migration process. 
+
+#### Creating a Repository For The Export Workflow
+
+You should **only** run the GOSM export workflow in a repository that is accessible to you alone, or your trusted organization administrators. **Only run the GOSM export in a private repository.** You should never run the export workflow in a repository with its visibility configured as public or internal.
+
+### Exporting Secrets 
+
+To generate an exportable archive of your GitHub organization's secrets, GOSM will:
+
+1. Retrieve a list of available organization secrets via the GitHub API, then
+2. Generate a GitHub Actions workflow to retrieve the plaintext values of those secrets, and 
+3. Upload them as a workflow artifact for you to download and import.
+
+#### Steps 1 & 2
+
+To generate your export workflow, execute GOSM like so:
+
+```
+GH_PAT=`ghp_yourTokenHere` ruby gosm.rb dump --org your-source-organization-here --workflow-file ./test.yml
+```
+
+Your output from GOSM should look something like this:
+
+```
+_____/\\\\\\\\\\\\_______/\\\\\__________/\\\\\\\\\\\____/\\\\____________/\\\\_        
+ ___/\\\//////////______/\\\///\\\______/\\\/////////\\\_\/\\\\\\________/\\\\\\_       
+  __/\\\_______________/\\\/__\///\\\___\//\\\______\///__\/\\\//\\\____/\\\//\\\_      
+   _\/\\\____/\\\\\\\__/\\\______\//\\\___\////\\\_________\/\\\\///\\\/\\\/_\/\\\_     
+    _\/\\\___\/////\\\_\/\\\_______\/\\\______\////\\\______\/\\\__\///\\\/___\/\\\_    
+     _\/\\\_______\/\\\_\//\\\______/\\\__________\////\\\___\/\\\____\///_____\/\\\_   
+      _\/\\\_______\/\\\__\///\\\__/\\\_____/\\\______\//\\\__\/\\\_____________\/\\\_  
+       _\//\\\\\\\\\\\\/_____\///\\\\\/_____\///\\\\\\\\\\\/___\/\\\_____________\/\\\_ 
+        __\////////////_________\/////_________\///////////_____\///______________\///__
+
+                            GitHub Organization Secrets Migrator (GOSM)
+                                      With ❤️ from Xpirit.com
+
+Generating an Actions workflow to dump secrets for 'xpirit-demos': './test.yml'
+Workflow for dumping 'xpirit-demos' secrets written to './test.yml'.
+```
+
+#### Step 3 
+
+Be sure you've gone over the security disclaimers provided earlier in this README before continuing.
+
+Create a new, private repository in your organization. **Ensure that access to this repository is as limited as possible.**
+
+Next, install the workflow file generated by GOSM's dump command into the repo. You can [execute this workflow manually](https://docs.github.com/en/actions/using-workflows/manually-running-a-workflow).
+
+Download the "secrets-dump" workflow artifact created by the GOSM workflow run. Immediately delete the workflow artifact from the run, then delete the GOSM export repo from your source organization.
+
+### Importing Secrets
+
+After you've successfully exported and downloaded your secrets, you can use GOSM to import them into 
+your destination organization.
+
+Extract the workflow artifact ZIP file retrieved from the previous step above. Then execute GOSM like so:
+
+```
+GH_PAT=`ghp_yourTokenHere` ruby gosm.rb import --org your-destination-organization-here --path /path/to/your/extracted/secrets_dump/ 
+```
+
+Here's what a the output of a successful import will look like:
+
+```
+_____/\\\\\\\\\\\\_______/\\\\\__________/\\\\\\\\\\\____/\\\\____________/\\\\_        
+ ___/\\\//////////______/\\\///\\\______/\\\/////////\\\_\/\\\\\\________/\\\\\\_       
+  __/\\\_______________/\\\/__\///\\\___\//\\\______\///__\/\\\//\\\____/\\\//\\\_      
+   _\/\\\____/\\\\\\\__/\\\______\//\\\___\////\\\_________\/\\\\///\\\/\\\/_\/\\\_     
+    _\/\\\___\/////\\\_\/\\\_______\/\\\______\////\\\______\/\\\__\///\\\/___\/\\\_    
+     _\/\\\_______\/\\\_\//\\\______/\\\__________\////\\\___\/\\\____\///_____\/\\\_   
+      _\/\\\_______\/\\\__\///\\\__/\\\_____/\\\______\//\\\__\/\\\_____________\/\\\_  
+       _\//\\\\\\\\\\\\/_____\///\\\\\/_____\///\\\\\\\\\\\/___\/\\\_____________\/\\\_ 
+        __\////////////_________\/////_________\///////////_____\///______________\///__
+
+                            GitHub Organization Secrets Migrator (GOSM)
+                                      With ❤️ from Xpirit.com
+
+Importing secrets to organization 'xpirit-demos' from dump '/Users/charlton/Downloads/secrets-dump'
+Importing AAAAA to xpirit-demos
+Importing BBBBB to xpirit-demos
+Importing CCCCC to xpirit-demos
+Import complete ❤️
+```
+
+Once the import is complete, you should see the secrets in your destination organization.
+
+**Make sure to thoroughly scrub all traces of your organization secrets dump from disk once you're done with the migration process!**
+
+**This includes the extracted secrets archive, as well as the .zip file.**
+
+#### :boat: Future Plans for Improved Security Ergonomics
+
+Future versions of GOSM will:
+
+- Automatically create a private repository with the appropriate permissions and GOSM workflow checked in,
+- Encrypt the exported secrets archive to provide better protection of its secrets at rest,
+- Delete the GOSM workflow artifact/repo automatically,
+- Clean up any trace artifacts from disk (or ideally, sidestep this completely by doing everything in memory)
+
+#### Help/Usage 
+
+```
+Usage: gosm [import | export] [opts]
+    -o, --org ORG                    Source GitHub organization name
+    -p, --dump-path PATH             Path to directory of dumped secrets for import
+    -y, --workflow-file PATH         Output path for the dump GitHub Actions workflow
+    -v VIS,                          Visibility of imported secrets (default private)
+        --imported-secret-visibility
+    -h, --help                       Display help
+```
